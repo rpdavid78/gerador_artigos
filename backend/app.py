@@ -478,7 +478,7 @@ import requests
 import json
 
 # Configuração da API do Gemini
-GEMINI_API_KEY = "AIzaSyCS1TDbDVXjqmnGppqYsBaGt1XC_vh-bDk"
+GEMINI_API_KEY = "SUA API KEY AQUI"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 @app.route('/api/ai/generate', methods=['POST'])
