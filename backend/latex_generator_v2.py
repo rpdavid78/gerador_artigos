@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-LaTeX Generator v2.0 - VERSÃO CORRIGIDA E SIMPLIFICADA
+LaTeX Generator v2.1 - VERSÃO COM FIGURAS CORRIGIDA
 Gerador avançado de documentos LaTeX para artigos acadêmicos
+CORREÇÃO: Problema das figuras com caption/filename trocados
 """
 
 import re
@@ -18,12 +19,13 @@ from typing import Dict, List, Optional, Any, Tuple
 
 class LatexGeneratorV2:
     """
-    Gerador LaTeX v2.0 - Versão corrigida que processa todas as seções
+    Gerador LaTeX v2.1 que processa todas as seções e figuras corretamente
+    CORREÇÃO PRINCIPAL: Validação robusta de dados das figuras
     """
     
     def __init__(self, output_dir: str = None, cache_dir: str = None):
         """
-        Inicializa o gerador versão 2.
+        Inicializa o gerador versão 2.1.
         
         Args:
             output_dir: Diretório de saída
@@ -113,9 +115,88 @@ class LatexGeneratorV2:
         """Limpar lista de referências"""
         self.references = []
     
+    def add_figure(self, caption: str, label: str, filename: str, width: str = "0.8\\textwidth"):
+        """
+        Adicionar figura ao documento - VERSÃO CORRIGIDA v2.1
+        
+        CORREÇÃO PRINCIPAL: Validação robusta dos dados das figuras
+        Detecta automaticamente se os dados estão trocados e corrige
+        """
+        print(f"DEBUG: add_figure recebido - caption='{caption}', label='{label}', filename='{filename}'")
+        
+        # CORREÇÃO: Detectar se os dados estão trocados
+        corrected_caption, corrected_label, corrected_filename = self._validate_and_fix_figure_data(
+            caption, label, filename
+        )
+        
+        figure = {
+            'caption': corrected_caption,
+            'label': corrected_label,
+            'filename': corrected_filename,
+            'width': width
+        }
+        
+        print(f"DEBUG: add_figure corrigido - caption='{corrected_caption}', label='{corrected_label}', filename='{corrected_filename}'")
+        
+        self.figures.append(figure)
+    
+    def _validate_and_fix_figure_data(self, caption: str, label: str, filename: str) -> Tuple[str, str, str]:
+        """
+        NOVA FUNÇÃO v2.1: Validar e corrigir dados das figuras
+        
+        Detecta automaticamente quando os dados estão nos campos errados:
+        - Se caption contém caminho de arquivo, move para filename
+        - Se filename está vazio, usa caption como filename
+        - Gera caption e label padrão quando necessário
+        """
+        
+        # Detectar se caption contém um caminho de arquivo
+        is_caption_a_path = (
+            caption and 
+            ('/' in caption or '\\' in caption) and
+            any(caption.lower().endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.svg'])
+        )
+        
+        # Detectar se filename está vazio ou inválido
+        is_filename_empty = not filename or filename.strip() == ""
+        
+        # CORREÇÃO AUTOMÁTICA DOS DADOS
+        if is_caption_a_path and is_filename_empty:
+            # CASO 1: Caption contém o caminho, filename está vazio
+            print(f"DEBUG: Detectado dados trocados - movendo '{caption}' de caption para filename")
+            corrected_filename = caption
+            corrected_caption = f"Figura {len(self.figures) + 1}"  # Caption padrão
+            corrected_label = label if label else f"fig:{len(self.figures) + 1}"
+            
+        elif is_caption_a_path and not is_filename_empty:
+            # CASO 2: Caption contém caminho E filename também tem valor
+            print(f"DEBUG: Caption parece ser caminho, mas filename também existe - usando filename")
+            corrected_filename = filename
+            corrected_caption = f"Figura {len(self.figures) + 1}"
+            corrected_label = label if label else f"fig:{len(self.figures) + 1}"
+            
+        elif not is_caption_a_path and is_filename_empty:
+            # CASO 3: Caption é texto normal, mas filename está vazio
+            print(f"DEBUG: Filename vazio - gerando filename padrão")
+            corrected_filename = f"figura_{len(self.figures) + 1}.jpg"  # Filename padrão
+            corrected_caption = caption if caption else f"Figura {len(self.figures) + 1}"
+            corrected_label = label if label else f"fig:{len(self.figures) + 1}"
+            
+        else:
+            # CASO 4: Dados parecem estar corretos
+            corrected_filename = filename
+            corrected_caption = caption if caption else f"Figura {len(self.figures) + 1}"
+            corrected_label = label if label else f"fig:{len(self.figures) + 1}"
+        
+        return corrected_caption, corrected_label, corrected_filename
+    
+    def clear_figures(self):
+        """Limpar lista de figuras"""
+        self.figures = []
+    
     def generate_latex(self) -> str:
         """
-        Gerar código LaTeX completo - VERSÃO CORRIGIDA
+        Gerar código LaTeX completo - VERSÃO CORRIGIDA v2.1
         """
         template = self.templates[self.template_type]
         
@@ -128,9 +209,13 @@ class LatexGeneratorV2:
         authors_latex = self._format_authors()
         latex_code = latex_code.replace('{{AUTHORS}}', authors_latex)
         
-        # CORREÇÃO PRINCIPAL: Processar seções corretamente
+        # Processar seções
         sections_latex = self._format_sections()
         latex_code = latex_code.replace('{{SECTIONS}}', sections_latex)
+        
+        # Processar figuras - VERSÃO CORRIGIDA v2.1
+        figures_latex = self._format_figures()
+        latex_code = latex_code.replace('{{FIGURES}}', figures_latex)
         
         # Processar referências
         references_latex = self._format_references()
@@ -157,14 +242,12 @@ class LatexGeneratorV2:
     def _format_sections(self) -> str:
         """
         Formatar seções para LaTeX - VERSÃO CORRIGIDA
-        Esta é a correção principal do bug!
         """
         if not self.sections:
             return ""
         
         sections_latex = []
         
-        # CORREÇÃO: Processar TODAS as seções, não apenas a primeira
         for i, section in enumerate(self.sections):
             if not section.get('title') or not section.get('content'):
                 continue  # Pular seções vazias
@@ -188,6 +271,65 @@ class LatexGeneratorV2:
             sections_latex.append(section_latex)
         
         return "\n".join(sections_latex)
+    
+    def _format_figures(self) -> str:
+        """
+        Formatar figuras para LaTeX - VERSÃO CORRIGIDA v2.1
+        
+        CORREÇÃO PRINCIPAL: Validação robusta e tratamento de erros
+        """
+        if not self.figures:
+            return ""
+        
+        figures_latex = []
+        for i, figure in enumerate(self.figures):
+            try:
+                # Extrair dados da figura com validação
+                raw_filename = figure.get('filename', '')
+                raw_caption = figure.get('caption', '')
+                raw_label = figure.get('label', '')
+                
+                print(f"DEBUG: _format_figures processando figura {i+1}:")
+                print(f"  - raw_filename: '{raw_filename}'")
+                print(f"  - raw_caption: '{raw_caption}'")
+                print(f"  - raw_label: '{raw_label}'")
+                
+                # VALIDAÇÃO ADICIONAL: Se ainda há problemas, corrigir aqui
+                if not raw_filename or raw_filename.strip() == "":
+                    print(f"DEBUG: Filename vazio na figura {i+1}, pulando...")
+                    continue
+                
+                # Extrair apenas o nome do arquivo (sem caminho)
+                filename = Path(raw_filename).name
+                
+                # Garantir que temos valores válidos
+                caption = raw_caption if raw_caption and not ('/' in raw_caption or '\\' in raw_caption) else f"Figura {i+1}"
+                label = raw_label if raw_label else f"fig:{i+1}"
+                width = figure.get('width', '0.8\\textwidth')
+                
+                print(f"DEBUG: _format_figures dados finais:")
+                print(f"  - filename: '{filename}'")
+                print(f"  - caption: '{caption}'")
+                print(f"  - label: '{label}'")
+                
+                # Gerar código LaTeX da figura
+                figure_latex = f"""
+\\begin{{figure}}[H]
+\\centering
+\\includegraphics[width={width}]{{{filename}}}
+\\caption{{{caption}}}
+\\label{{{label}}}
+\\end{{figure}}
+"""
+                figures_latex.append(figure_latex)
+                
+            except Exception as e:
+                print(f"DEBUG: Erro ao processar figura {i+1}: {e}")
+                continue
+        
+        result = "\n".join(figures_latex)
+        print(f"DEBUG: _format_figures resultado final:\n{result}")
+        return result
     
     def _format_references(self) -> str:
         """Formatar referências para LaTeX"""
@@ -254,6 +396,8 @@ class LatexGeneratorV2:
 
 {{SECTIONS}}
 
+{{FIGURES}}
+
 \\begin{thebibliography}{99}
 {{REFERENCES}}
 \\end{thebibliography}
@@ -270,6 +414,7 @@ class LatexGeneratorV2:
 \\usepackage{textcomp}
 \\usepackage{xcolor}
 \\usepackage{cite}
+\\usepackage{float}
 
 \\title{{{TITLE}}}
 \\author{{{AUTHORS}}}
@@ -287,6 +432,8 @@ class LatexGeneratorV2:
 
 {{SECTIONS}}
 
+{{FIGURES}}
+
 \\begin{thebibliography}{1}
 {{REFERENCES}}
 \\end{thebibliography}
@@ -302,6 +449,7 @@ class LatexGeneratorV2:
 \\usepackage{graphicx}
 \\usepackage{cite}
 \\usepackage{url}
+\\usepackage{float}
 
 \\title{{{TITLE}}}
 \\author{{{AUTHORS}}}
@@ -318,6 +466,8 @@ class LatexGeneratorV2:
 \\textbf{Keywords:} {{KEYWORDS}}
 
 {{SECTIONS}}
+
+{{FIGURES}}
 
 \\begin{thebibliography}{1}
 {{REFERENCES}}
@@ -338,6 +488,7 @@ class LatexGeneratorV2:
 \\usepackage{graphicx}
 \\usepackage{cite}
 \\usepackage{indentfirst}
+\\usepackage{float}
 
 \\title{{{TITLE}}}
 \\author{{{AUTHORS}}}
@@ -355,6 +506,8 @@ class LatexGeneratorV2:
 
 {{SECTIONS}}
 
+{{FIGURES}}
+
 \\begin{thebibliography}{1}
 {{REFERENCES}}
 \\end{thebibliography}
@@ -368,14 +521,41 @@ class LatexGeneratorV2:
             'authors_count': len(self.authors),
             'sections_count': len(self.sections),
             'references_count': len(self.references),
+            'figures_count': len(self.figures),
             'sections_processed': len([s for s in self.sections if s.get('title') and s.get('content')]),
             'sections_received': len(self.sections)
         }
 
+    def _copy_figures_to_output(self) -> List[str]:
+        """Copiar figuras para o diretório de output e retornar lista de nomes"""
+        copied_files = []
+        
+        for figure in self.figures:
+            source_path = Path(figure['filename'])
+            
+            if source_path.exists():
+                # Criar nome seguro para o arquivo (sem espaços)
+                safe_name = source_path.name.replace(' ', '_')
+                dest_path = self.output_dir / safe_name
+                
+                try:
+                    shutil.copy2(source_path, dest_path)
+                    copied_files.append(safe_name)
+                    # Atualizar o filename na figura para usar o nome seguro
+                    figure['filename'] = safe_name
+                except Exception as e:
+                    print(f"Erro ao copiar figura {source_path}: {e}")
+            else:
+                print(f"Arquivo de figura não encontrado: {source_path}")
+        
+        return copied_files
 
     def compile_to_pdf(self, output_name: str = "document") -> Tuple[bool, str, Dict[str, Path]]:
         """Compila o documento para PDF."""
         try:
+            # Copiar figuras para o diretório de output
+            copied_figures = self._copy_figures_to_output()
+            
             # Gerar código LaTeX
             latex_code = self.generate_latex()
             
@@ -403,29 +583,29 @@ class LatexGeneratorV2:
                     final_tex = self.output_dir / f"{output_name}.tex"
                     
                     shutil.move(str(pdf_path), str(final_pdf))
+                    shutil.copy2(tex_file, str(final_tex))
                     
-                    # Salvar arquivo LaTeX também
-                    with open(final_tex, 'w', encoding='utf-8') as f:
-                        f.write(latex_code)
-                    
-                    return True, "PDF gerado com sucesso", {
+                    return True, f"PDF gerado com sucesso. Figuras copiadas: {len(copied_figures)}", {
                         'latex': final_tex,
                         'pdf': final_pdf
                     }
                 else:
                     return False, f"Erro na compilação: {result.stderr}", {}
                     
+            except subprocess.TimeoutExpired:
+                return False, "Timeout na compilação do PDF", {}
             finally:
                 # Limpar arquivo temporário
-                if os.path.exists(tex_file):
+                try:
                     os.unlink(tex_file)
+                except:
+                    pass
                     
-        except subprocess.TimeoutExpired:
-            return False, "Timeout na compilação do PDF", {}
         except Exception as e:
             return False, f"Erro inesperado: {str(e)}", {}
     
     def _get_cache_key(self, content: str) -> str:
         """Gera chave de cache baseada no conteúdo."""
         return hashlib.md5(content.encode('utf-8')).hexdigest()[:16]
+
 
