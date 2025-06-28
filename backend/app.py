@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 """
 Servidor Flask para Gerador de Artigos LaTeX v2.0 - VERSÃO CORRIGIDA
-Autor: Manus AI
 """
 
 import os
