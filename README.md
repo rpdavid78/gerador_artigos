@@ -448,7 +448,6 @@ O editor de conteúdo oferece uma experiência de escrita fluida e produtiva. Co
 - Busca e substituição avançada
 
 ### 👥 Gerenciamento de Autores
-*[Inserir screenshot da seção de autores aqui]*
 
 A interface de gerenciamento de autores permite adicionar, editar e organizar informações de múltiplos autores de forma visual e intuitiva. Cada autor é representado por um card com todas as informações relevantes.
 
